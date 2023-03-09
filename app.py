@@ -49,13 +49,14 @@ navbar = dbc.Navbar(
     sticky="top",
 )
 
+# Create the fields to take in input of stocks and shares including a submit button
 stockInput = html.Div([
         dcc.Input(
             id="inputStock".format('text'),
             type='text',
             placeholder="Ticker Name".format('text'),
             debounce=True,
-            style={'margin-left': 1000}
+            style={'margin-left': 0}
         ),
         dcc.Input(
             id="inputShares".format('number'),
@@ -74,6 +75,7 @@ stockInput = html.Div([
 # ****************************** #
 # Callbacks (creating table and graph)
 
+# When both stock and shares an inputted:
 @app.callback(
     Output("output", "children"),
     Input("submit-val", "n_clicks"),
@@ -82,12 +84,16 @@ stockInput = html.Div([
 )
 def tableOutput(n_clicks,stock,shares):
     if stock:
+        # Check if stock exists through yfinance, if not give an alert
         tic = yf.Ticker(stock)
         info = tic.history(period='7d',interval='1d')
         if len(info) == 0:
             return dbc.Alert("Not a valid ticker", color="danger")
+        # also give an alert if shares are not imputted
         if shares == None:
             return dbc.Alert("Input amount of shares", color="danger")
+        
+        # Create CurrentMarket instance of the stock, calculate and graph all the values needed
         curStock = CurrentMarket(stock, "STOCK")
         change = curStock.Change()
         OYE = curStock.OneYearTarget()
@@ -103,6 +109,7 @@ def tableOutput(n_clicks,stock,shares):
             ]
         )
 
+# Search up data from the inputStock field with yahoo finance, graph the data and return it as a figure
 @app.callback(
     Output("graph", "figure"), 
     Input("submit-val", "n_clicks"),
@@ -111,6 +118,9 @@ def tableOutput(n_clicks,stock,shares):
     )
 def display_candlestick(n_clicks, stock):
     data = yf.download(stock, start="2020-01-01", end="2023-03-08")
+    # need to figure out returning nothing as a graph item if ticker does not exist
+    # if len(data) == 0: 
+    #     return fig
     df = pd.DataFrame(data)
     df.reset_index(inplace=True)
     fig = go.Figure(data=[go.Candlestick(
@@ -122,7 +132,7 @@ def display_candlestick(n_clicks, stock):
 
     return fig
 
-
+# When a stock is inputted, make the graph visible 
 @app.callback(
     Output("graph", "style"), 
     [Input("submit-val", "n_clicks"), Input("inputStock", "value")],
@@ -145,53 +155,14 @@ app.layout = html.Div([
     navbar,
     # dbc.Spinner(
     html.Div([
-        html.Div([
-            dbc.Row(
-                [
-                    dbc.Col(
-                        [
-                            html.Div(
-                                [
-                                    html.H3("Stock Input"),
-                                    html.Div([
-                                        dcc.Input(
-                                            id="inputStock".format('text'),
-                                            type='text',
-                                            placeholder="Ticker Name".format('text'),
-                                            debounce=True
-                                        ),
-                                        dcc.Input(
-                                            id="inputShares".format('number'),
-                                            type='number',
-                                            placeholder="Shares Amount".format('number'),
-                                            debounce=True
-                                        ),
-                                        html.Button(
-                                            'Submit', id='submit-val', n_clicks=0
-                                        ),
-                                    ],
-                                        style={'margin-bottom': '10px'}
-                                    ),
-                                    html.Div(id="output", style={'margin': 'auto'}),
-                                ],
-                                style={'border': '1px solid #ddd', 'padding': '10px', 'width': '100%', 'margin': 'auto'}
-                            )
-                        ],
-                        md=4,
-                        style={'margin-right': '10px'}
-                    ),
-                    dbc.Col(
-                        dcc.Graph(id="graph", style={'display': 'none'}),
-                        md=8
-                    ),
-                ],
+        stockInput,
+            dbc.Col(
+                dcc.Graph(id="graph", style={'display': 'none'}),
+                md=8
+            )],
                 style={'margin-top': '50px'}
             )
         ], style={'text-align': 'center'})
-    ])
-    # , type="grow", color="primary", fullscreen=False),
-])
-
 
 
 
